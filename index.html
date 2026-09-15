@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>连连看小游戏</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
+body{background:#f0f7ff;padding:20px;text-align:center}
+#info{margin-bottom:12px;font-size:18px}
+#board{display:grid;grid-template-columns:repeat(8,52px);gap:4px;margin:0 auto;width:fit-content}
+.cell{
+  width:52px;height:52px;
+  background:#fff;border:1px solid #a0c8f0;border-radius:6px;
+  font-size:26px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;user-select:none;
+}
+.cell.selected{background:#c6e4ff}
+.cell.empty{visibility:hidden;cursor:default}
+</style>
+</head>
+<body>
+<div id="info">连连看｜选中两个相同且可连通的图案消除</div>
+<div id="board"></div>
+
+<script>
+// 配置
+const R = 8, C = 8;
+const icons = ['🍎','🍌','🍇','🍓','🍒','🥝','🍊','🍋','🥭','🍑','🫐','🍐','🍅','🥥','🍈','🍏'];
+let map = [];
+let sel = null;
+
+// 初始化
+function init(){
+  const total = R*C;
+  let list = [];
+  // =====修复这里！加上 i%icons.length=====
+  for(let i=0;i<total/2;i++){
+    const idx = i % icons.length;
+    list.push(icons[idx], icons[idx]);
+  }
+  // 洗牌
+  for(let i=list.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [list[i],list[j]] = [list[j],list[i]];
+  }
+  map = [];
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  for(let r=0;r<R;r++){
+    map[r] = [];
+    for(let c=0;c<C;c++){
+      const val = list[r*C + c];
+      map[r][c] = val;
+      const div = document.createElement('div');
+      div.className = 'cell';
+      div.innerText = val;
+      div.dataset.r = r;
+      div.dataset.c = c;
+      div.onclick = ()=>click(r,c);
+      board.appendChild(div);
+    }
+  }
+  sel = null;
+}
+
+function getEl(r,c){
+  return document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+}
+
+function isEmpty(r,c){
+  if(r<0||r>=R||c<0||c>=C) return true;
+  return !map[r][c];
+}
+
+// 判断连通（最多2次转弯，标准连连看规则）
+function canLink(r1,c1,r2,c2){
+  if(r1===r2 && c1===c2) return false;
+  if(map[r1][c1] !== map[r2][c2]) return false;
+
+  // 直线
+  if(lineOk(r1,c1,r2,c2)) return true;
+
+  // 一次拐点
+  if(isEmpty(r1,c2) && lineOk(r1,c1,r1,c2) && lineOk(r1,c2,r2,c2)) return true;
+  if(isEmpty(r2,c1) && lineOk(r1,c1,r2,c1) && lineOk(r2,c1,r2,c2)) return true;
+
+  // 两次拐点
+  for(let k=0;k<R;k++){
+    if(isEmpty(k,c1) && isEmpty(k,c2)){
+      if(lineOk(r1,c1,k,c1) && lineOk(k,c1,k,c2) && lineOk(k,c2,r2,c2)) return true;
+    }
+  }
+  for(let k=0;k<C;k++){
+    if(isEmpty(r1,k) && isEmpty(r2,k)){
+      if(lineOk(r1,c1,r1,k) && lineOk(r1,k,r2,k) && lineOk(r2,k,r2,c2)) return true;
+    }
+  }
+  return false;
+}
+function lineOk(r1,c1,r2,c2){
+  if(r1===r2){
+    let minc = Math.min(c1,c2), maxc = Math.max(c1,c2);
+    for(let c=minc+1;c<maxc;c++) if(!isEmpty(r1,c)) return false;
+    return true;
+  }else{
+    let minr = Math.min(r1,r2), maxr = Math.max(r1,r2);
+    for(let r=minr+1;r<maxr;r++) if(!isEmpty(r,c1)) return false;
+    return true;
+  }
+}
+
+function click(r,c){
+  if(isEmpty(r,c)) return;
+  if(!sel){
+    // 第一次选
+    sel = {r,c};
+    getEl(r,c).classList.add('selected');
+  }else{
+    const s = sel;
+    getEl(s.r,s.c).classList.remove('selected');
+    if(canLink(s.r,s.c,r,c)){
+      // 消除
+      map[s.r][s.c] = null;
+      map[r][c] = null;
+      getEl(s.r,s.c).classList.add('empty');
+      getEl(r,c).classList.add('empty');
+      setTimeout(checkWin,100);
+    }
+    sel = null;
+  }
+}
+function checkWin(){
+  for(let r=0;r<R;r++){
+    for(let c=0;c<C;c++){
+      if(map[r][c]) return;
+    }
+  }
+  alert("🎉 恭喜通关！");
+}
+init();
+</script>
+</body>
+</html>
